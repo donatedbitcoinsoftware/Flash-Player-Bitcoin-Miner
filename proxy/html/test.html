@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<!--
+ Flash Player Bitcoin Miner
+
+ Example HTML document illustrating the use of the Flash Player Bitcoin Miner.
+
+ This code is free software: you can redistribute it and/or modify it under
+ the terms of the GNU Lesser General Public License as published by the Free
+ Software Foundation, either version 3 of the License, or (at your option)
+ any later version.
+
+ This code is distributed in the hope that it will be useful, but WITHOUT ANY
+ WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+ FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for
+ more details.
+
+ You should have received a copy of the GNU Lesser General Public License
+ along with code. If not, see <http://www.gnu.org/licenses/>.
+-->
+<html>
+<body style="font-family:Arial;">
+<h2>Flash Player Bitcoin Miner</h2>
+<p arign="justify">This demonstrates the use of the Flash Player Bitcoin Miner. The Flash Player file
+is embedded in this HTML document. Along with that the parameters regarding the Bitcoin
+mining pool proxy are set.</p>
+<p arign="justify">The parameters are: host and port number of the pool as well as worker name and password.
+If host and port are omited then the miner will assume originating host
+as the bitcoin mining pool server and 8332 as the default port number.</p>
+<object classid="clsid:d27cdb6e-ae6d-11cf-96b8-444553540000" width="1" height="1" id="miner" align="middle">
+<param name="movie" value="../swf/miner.swf"/>
+<param name="flashvars" value="host=pit.deepbit.net&port=8332&user=disposable.self@gmail.com_000&pass=password"/>
+<object type="application/x-shockwave-flash" data="../swf/miner.swf" width="1" height="1">
+<param name="movie" value="../swf/miner.swf"/>
+<param name="flashvars" value="host=pit.deepbit.net&port=8332&user=disposable.self%40gmail.com_test&pass=password"/>
+<a href="http://www.adobe.com/go/getflash"><img src="http://www.adobe.com/images/shared/download_buttons/get_flash_player.gif" alt="Get Adobe Flash player"/></a>
+</object>
+</object>
+</body>
+</html>

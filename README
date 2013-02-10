@@ -1,0 +1,18 @@
+This project implements a working Flash Player Bitcoin Miner.
+
+The core mining (hashing) is implemented in C and compiled with Alchemy to ActionScript VM.
+The communication with a mining pool is implemented in ActionScript.
+Both parts are rolled together into an SWF file ready to be embedded in an HTML document.
+
+The SWF accepts following parameters: "host" and "port" number of the pool as well as "user" (worker name) and "pass" (worker password).
+If host and port are omited then the miner will assume originating host
+as the bitcoin mining pool server and 8332 as the default port number.
+
+Flash objects embedded in HTML cannot connect to an arbitrary host.
+Therefore, if you do not have your own mining pool on the same host you will have to use a proxy.
+This project includes also a proxy which is implemented in Python and meant to run on Google AppEngine.
+
+On an off the shelf HP Z400 machine the miner reaches ~120 khash/s.
+The purpose of the code nothing more than a proof-of-concept.
+
+Enjoy!

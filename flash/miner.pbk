@@ -1,0 +1,182 @@
+// Flash Player Bitcoin Miner
+//
+// Experimental PixelBender shader with a portion of the code necessary for bitcoin mining.
+// Abandoned because it was way too clumsy & slow (due to lack of bitwise operations).
+//
+// This code is free software: you can redistribute it and/or modify it under
+// the terms of the GNU Lesser General Public License as published by the Free
+// Software Foundation, either version 3 of the License, or (at your option)
+// any later version.
+//
+// This code is distributed in the hope that it will be useful, but WITHOUT ANY
+// WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS
+// FOR A PARTICULAR PURPOSE. See the GNU Lesser General Public License for
+// more details.
+//
+// You should have received a copy of the GNU Lesser General Public License
+// along with code. If not, see <http://www.gnu.org/licenses/>.
+//
+// These declarations would have to be added to ActionScript portion of the code:
+//
+//   [Embed(source="lut.png")]
+//   private var LUTClass:Class;
+//   [Embed(source="miner.pbj", mimeType="application/octet-stream")]
+//   private var KernelClass:Class;
+//   private var shader:Shader = new Shader(new KernelClass());
+//   private var dataIn:ByteArray;
+//   private var dataOut:ByteArray;
+//
+// This would be the initiation code for starting bitwise calculations:
+//
+//   private function go():void{
+//     shader.precisionHint = ShaderPrecision.FULL;
+//     dataIn = new ByteArray();
+//     dataIn.endian = Endian.LITTLE_ENDIAN;
+//     dataOut = new ByteArray();
+//     dataOut.endian = Endian.LITTLE_ENDIAN;
+//     var value:uint;
+//     for(var i:uint = 0; i < 256 * 256; i++){
+//       dataIn.writeFloat(Math.random());
+//       dataIn.writeFloat(Math.random());
+//       dataIn.writeFloat(Math.random());
+//       dataIn.writeFloat(Math.random());
+//     }
+//     if(shader.data.buffer){
+//       shader.data.buffer.input = dataIn;
+//       shader.data.buffer.width = 256;
+//       shader.data.buffer.height = 256;
+//     }
+//     if(shader.data.lut){
+//       shader.data.lut.input = new LUTClass().bitmapData;
+//       shader.data.lut.width = 256;
+//       shader.data.lut.height = 273;
+//     }
+//     var job:ShaderJob = new ShaderJob(shader, dataOut, 256, 256);
+//     job.addEventListener(ShaderEvent.COMPLETE, complete);
+//     job.start();
+//   }
+//
+// And this would be the reception point for the calculated values:
+//
+//   private function complete(event:ShaderEvent):void{
+//     dataIn.position = 0;
+//     dataOut.position = 0;
+//     for(var i:int = 0; i < 256 * 256; i++){
+//       var x:int = i % 256;
+//       var y:int = i / 256;
+//       var original:uint = 0;
+//       original |= uint(dataIn.readFloat() * 255.0) << 0;
+//       original |= uint(dataIn.readFloat() * 255.0) << 8;
+//       original |= uint(dataIn.readFloat() * 255.0) << 16;
+//       original |= uint(dataIn.readFloat() * 255.0) << 24;
+//       var processed:uint = 0;
+//       processed |= uint(dataOut.readFloat() * 255.0) << 0;
+//       processed |= uint(dataOut.readFloat() * 255.0) << 8;
+//       processed |= uint(dataOut.readFloat() * 255.0) << 16;
+//       processed |= uint(dataOut.readFloat() * 255.0) << 24;
+//   }
+//
+// The code would have to be built like this:
+//
+//   pbutil miner.pbk miner.pbj
+//   mxmlc.exe --target-player=11.1.0 -default-frame-rate=1 -static-link-runtime-shared-libraries=true -debug=true miner.as
+//
+<languageVersion : 1.0;>
+kernel support <namespace: "miner"; vendor: "miner"; version: 1;>{
+  input image4 buffer;
+  input image3 lut;
+  output pixel4 result;
+
+  #define andLUT(v0, v1) (sampleNearest(lut, float2(v0, v1))[0] * 255.0)
+  #define  orLUT(v0, v1) (sampleNearest(lut, float2(v0, v1))[1] * 255.0)
+  #define xorLUT(v0, v1) (sampleNearest(lut, float2(v0, v1))[2] * 255.0)
+
+  #define andALU(v0, v1) (                                                           \
+      ((mod(v0        , 2.0) >= 1.0) && (mod(v1        , 2.0) >= 1.0) ?   1.0 : 0.0) \
+    + ((mod(v0 /   2.0, 2.0) >= 1.0) && (mod(v1 /   2.0, 2.0) >= 1.0) ?   2.0 : 0.0) \
+    + ((mod(v0 /   4.0, 2.0) >= 1.0) && (mod(v1 /   4.0, 2.0) >= 1.0) ?   4.0 : 0.0) \
+    + ((mod(v0 /   8.0, 2.0) >= 1.0) && (mod(v1 /   8.0, 2.0) >= 1.0) ?   8.0 : 0.0) \
+    + ((mod(v0 /  16.0, 2.0) >= 1.0) && (mod(v1 /  16.0, 2.0) >= 1.0) ?  16.0 : 0.0) \
+    + ((mod(v0 /  32.0, 2.0) >= 1.0) && (mod(v1 /  32.0, 2.0) >= 1.0) ?  32.0 : 0.0) \
+    + ((mod(v0 /  64.0, 2.0) >= 1.0) && (mod(v1 /  64.0, 2.0) >= 1.0) ?  64.0 : 0.0) \
+    + ((mod(v0 / 128.0, 2.0) >= 1.0) && (mod(v1 / 128.0, 2.0) >= 1.0) ? 128.0 : 0.0) \
+    )
+
+  #define orALU(v0, v1) (                                                            \
+      ((mod(v0        , 2.0) >= 1.0) || (mod(v1        , 2.0) >= 1.0) ?   1.0 : 0.0) \
+    + ((mod(v0 /   2.0, 2.0) >= 1.0) || (mod(v1 /   2.0, 2.0) >= 1.0) ?   2.0 : 0.0) \
+    + ((mod(v0 /   4.0, 2.0) >= 1.0) || (mod(v1 /   4.0, 2.0) >= 1.0) ?   4.0 : 0.0) \
+    + ((mod(v0 /   8.0, 2.0) >= 1.0) || (mod(v1 /   8.0, 2.0) >= 1.0) ?   8.0 : 0.0) \
+    + ((mod(v0 /  16.0, 2.0) >= 1.0) || (mod(v1 /  16.0, 2.0) >= 1.0) ?  16.0 : 0.0) \
+    + ((mod(v0 /  32.0, 2.0) >= 1.0) || (mod(v1 /  32.0, 2.0) >= 1.0) ?  32.0 : 0.0) \
+    + ((mod(v0 /  64.0, 2.0) >= 1.0) || (mod(v1 /  64.0, 2.0) >= 1.0) ?  64.0 : 0.0) \
+    + ((mod(v0 / 128.0, 2.0) >= 1.0) || (mod(v1 / 128.0, 2.0) >= 1.0) ? 128.0 : 0.0) \
+    )
+
+  #define xorALU(v0, v1) (                                                           \
+      ((mod(v0        , 2.0) >= 1.0) != (mod(v1        , 2.0) >= 1.0) ?   1.0 : 0.0) \
+    + ((mod(v0 /   2.0, 2.0) >= 1.0) != (mod(v1 /   2.0, 2.0) >= 1.0) ?   2.0 : 0.0) \
+    + ((mod(v0 /   4.0, 2.0) >= 1.0) != (mod(v1 /   4.0, 2.0) >= 1.0) ?   4.0 : 0.0) \
+    + ((mod(v0 /   8.0, 2.0) >= 1.0) != (mod(v1 /   8.0, 2.0) >= 1.0) ?   8.0 : 0.0) \
+    + ((mod(v0 /  16.0, 2.0) >= 1.0) != (mod(v1 /  16.0, 2.0) >= 1.0) ?  16.0 : 0.0) \
+    + ((mod(v0 /  32.0, 2.0) >= 1.0) != (mod(v1 /  32.0, 2.0) >= 1.0) ?  32.0 : 0.0) \
+    + ((mod(v0 /  64.0, 2.0) >= 1.0) != (mod(v1 /  64.0, 2.0) >= 1.0) ?  64.0 : 0.0) \
+    + ((mod(v0 / 128.0, 2.0) >= 1.0) != (mod(v1 / 128.0, 2.0) >= 1.0) ? 128.0 : 0.0) \
+    )
+
+  #define andBIT(v0, v1) floor(andLUT(floor(v0), floor(v1)))
+  #define  orBIT(v0, v1) floor( orLUT(floor(v0), floor(v1)))
+  #define xorBIT(v0, v1) floor(xorLUT(floor(v0), floor(v1)))
+
+  #define and(v0, v1) float4(andBIT(v0[0], v1[0]), andBIT(v0[1], v1[1]), andBIT(v0[2], v1[2]), andBIT(v0[3], v1[3]))
+  #define  or(v0, v1) float4( orBIT(v0[0], v1[0]),  orBIT(v0[1], v1[1]),  orBIT(v0[2], v1[2]),  orBIT(v0[3], v1[3]))
+  #define xor(v0, v1) float4(xorBIT(v0[0], v1[0]), xorBIT(v0[1], v1[1]), xorBIT(v0[2], v1[2]), xorBIT(v0[3], v1[3]))
+
+  #define shxLUT(v, s) (sampleNearest(lut, float2(v, floor(s + 264.0)))[0] * 255.0)
+  #define shxALU(v, s) mod(v * pow(2.0, s), 256.0)
+
+  #define guard(s) (((-8.0 < s) && (s < 8.0)) ? 1.0 : 0.0)
+  #define shx(v, s) floor(shxLUT(floor(v), s) * guard(s))
+
+  #define shl(v, s) float4(                                                                    \
+    shx(v[0], s       ),                                                                       \
+    shx(v[0], s -  8.0)  + shx(v[1], s       ),                                                \
+    shx(v[0], s - 16.0)  + shx(v[1], s -  8.0)  + shx(v[2], s       ),                         \
+    shx(v[0], s - 24.0)  + shx(v[1], s - 16.0)  + shx(v[2], s -  8.0)  + shx(v[3], s       )   \
+    )
+
+  #define shr(v, s) float4(                                                                    \
+    shx(v[0], -s       ) + shx(v[1], -s +  8.0) + shx(v[2], -s + 16.0) + shx(v[3], -s + 24.0), \
+                           shx(v[1], -s       ) + shx(v[2], -s +  8.0) + shx(v[3], -s + 16.0), \
+                                                  shx(v[2], -s       ) + shx(v[3], -s +  8.0), \
+                                                                         shx(v[3], -s       )  \
+    )
+
+  #define ror(v, s) or(shr(v, s), shl(v, 32.0 - s))
+
+  #define ch(x, y, z) xor(         z, and(         x, xor(y,  z)))
+  #define maj(x, y,z)  or(and(x,  y), and(         z,  or(x,  y)))
+  #define e0(x)       xor(ror(x,  2), xor(ror(x, 13), ror(x, 22)))
+  #define e1(x)       xor(ror(x,  6), xor(ror(x, 11), ror(x, 25)))
+  #define s0(x)       xor(ror(x,  7), xor(ror(x, 18), shr(x,  3)))
+  #define s1(x)       xor(ror(x, 17), xor(ror(x, 19), shr(x, 10)))
+
+  #define addRAW(v0, v1) float4(floor(floor(v0[0]) + floor(v1[0])), floor(floor(v0[1]) + floor(v1[1])), floor(floor(v0[2]) + floor(v1[2])), floor(floor(v0[3]) + floor(v1[3])))
+  #define carry(v) float4(                                \
+          floor(mod(v[0], 256.0)),                        \
+    floor(floor(mod(v[1], 256.0)) + floor(v[0] / 256.0)), \
+    floor(floor(mod(v[2], 256.0)) + floor(v[1] / 256.0)), \
+    floor(floor(mod(v[3], 256.0)) + floor(v[2] / 256.0))  \
+    )
+  #define add(v0, v1) carry(carry(carry(carry(addRAW(v0, v1)))))
+
+  #define decode(v) float4(v[0] * 255.0, v[1] * 255.0, v[2] * 255.0, v[3] * 255.0)
+  #define encode(v) (v / 255.0)
+
+  void evaluatePixel(){
+    float2 position = outCoord();
+    float4 value = decode(sampleNearest(buffer, outCoord()));
+    // Operate on the value
+    result = encode(value);
+  }
+}
